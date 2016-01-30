@@ -104,15 +104,6 @@ public class Robot extends IterativeRobot {
     public void testPeriodic() {
     
     }
-    
-    //Drive robot
-    public void operatorControl() {
-        myRobot.setSafetyEnabled(true);
-        while (isOperatorControl() && isEnabled()) {
-        	myRobot.tankDrive(-leftStick.getY(), -rightStick.getY());
-            Timer.delay(0.005);		// wait for a motor update time
-}
-    }
 }
 // yellow right front
 //orange right rear
