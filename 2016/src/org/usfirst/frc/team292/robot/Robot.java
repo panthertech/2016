@@ -1,7 +1,10 @@
 
 package org.usfirst.frc.team292.robot;
 
+import edu.wpi.first.wpilibj.CANTalon;
 import edu.wpi.first.wpilibj.IterativeRobot;
+import edu.wpi.first.wpilibj.Joystick;
+import edu.wpi.first.wpilibj.RobotDrive;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -16,8 +19,18 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 public class Robot extends IterativeRobot {
     final String defaultAuto = "Default";
     final String customAuto = "My Auto";
+    final double armUpPosition = 0;
+    final double armDownPosition = 1023;
+    final double pickupSpeed = 1.0;
     String autoSelected;
     SendableChooser chooser;
+    
+    RobotDrive myRobot;  // class that handles basic drive operations
+    Joystick leftStick;  // set to ID 1 in DriverStation
+    Joystick rightStick; // set to ID 2 in DriverStation
+    Joystick operatorStick; //set to ID 3 in DriverStation
+    CANTalon pickup;
+	CANTalon arm;
 	
     /**
      * This function is run when the robot is first started up and should be
@@ -28,6 +41,15 @@ public class Robot extends IterativeRobot {
         chooser.addDefault("Default Auto", defaultAuto);
         chooser.addObject("My Auto", customAuto);
         SmartDashboard.putData("Auto choices", chooser);
+
+		myRobot = new RobotDrive(0, 1, 2, 3);
+		myRobot.setExpiration(0.1);
+		leftStick = new Joystick(0);
+		rightStick = new Joystick(1);
+		operatorStick = new Joystick(2);
+		pickup = new CANTalon(1);
+		arm = new CANTalon(2); // It just can't
+		arm.setControlMode(CANTalon.TalonControlMode.Position.value);
     }
     
 	/**
@@ -64,7 +86,16 @@ public class Robot extends IterativeRobot {
      * This function is called periodically during operator control
      */
     public void teleopPeriodic() {
-        
+    	//pick up boulder
+    	myRobot.tankDrive(-leftStick.getY(), -rightStick.getY());
+    	
+    	if(operatorStick.getTrigger()) {
+        	pickup.set(pickupSpeed);
+    	} else {
+        	pickup.set(0);
+    	}
+    	
+    	
     }
     
     /**
@@ -74,4 +105,18 @@ public class Robot extends IterativeRobot {
     
     }
     
+    //Drive robot
+    public void operatorControl() {
+        myRobot.setSafetyEnabled(true);
+        while (isOperatorControl() && isEnabled()) {
+        	myRobot.tankDrive(-leftStick.getY(), -rightStick.getY());
+            Timer.delay(0.005);		// wait for a motor update time
 }
+    }
+}
+// yellow right front
+//orange right rear
+//green left rear
+//purple left front
+//blue whatever one larry made
+//white another one larry made
