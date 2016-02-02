@@ -21,7 +21,8 @@ public class Robot extends IterativeRobot {
     final String customAuto = "My Auto";
     final double armUpPosition = 0;
     final double armDownPosition = 1023;
-    final double pickupSpeed = 1.0;
+    final double pickupSpeed = -0.30;
+    final double shootSpeed = 1.0;
     String autoSelected;
     SendableChooser chooser;
     
@@ -47,9 +48,9 @@ public class Robot extends IterativeRobot {
 		leftStick = new Joystick(0);
 		rightStick = new Joystick(1);
 		operatorStick = new Joystick(2);
-		pickup = new CANTalon(1);
-		arm = new CANTalon(2); // It just can't
-		arm.setControlMode(CANTalon.TalonControlMode.Position.value);
+		pickup = new CANTalon(3);
+		arm = new CANTalon(2);
+		//arm.setControlMode(CANTalon.TalonControlMode.Position.value);
     }
     
 	/**
@@ -90,12 +91,14 @@ public class Robot extends IterativeRobot {
     	myRobot.tankDrive(-leftStick.getY(), -rightStick.getY());
     	
     	if(operatorStick.getTrigger()) {
+        	pickup.set(shootSpeed);
+    	} else if (operatorStick.getRawButton(2)) {
         	pickup.set(pickupSpeed);
     	} else {
         	pickup.set(0);
     	}
     	
-    	
+    	arm.set(operatorStick.getY());
     }
     
     /**
