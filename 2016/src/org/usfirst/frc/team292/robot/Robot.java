@@ -2,6 +2,9 @@
 package org.usfirst.frc.team292.robot;
 
 import edu.wpi.first.wpilibj.CANTalon;
+import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
+import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
@@ -21,7 +24,7 @@ public class Robot extends IterativeRobot {
     final String customAuto = "My Auto";
     final double armUpPosition = 0;
     final double armDownPosition = 1023;
-    final double pickupSpeed = -0.30;
+    final double pickupSpeed = -0.40;
     final double shootSpeed = 1.0;
     String autoSelected;
     SendableChooser chooser;
@@ -32,6 +35,8 @@ public class Robot extends IterativeRobot {
     Joystick operatorStick; //set to ID 3 in DriverStation
     CANTalon pickup;
 	CANTalon arm;
+	DigitalInput ballSensor;
+	Camera cam;
 	
     /**
      * This function is run when the robot is first started up and should be
@@ -42,6 +47,10 @@ public class Robot extends IterativeRobot {
         chooser.addDefault("Default Auto", defaultAuto);
         chooser.addObject("My Auto", customAuto);
         SmartDashboard.putData("Auto choices", chooser);
+        SmartDashboard.putNumber("Arm Setpoint", 300);
+        SmartDashboard.putNumber("Arm P", 10);
+        SmartDashboard.putNumber("Arm I", .002);
+        SmartDashboard.putNumber("Arm D", .004);
 
 		myRobot = new RobotDrive(0, 1, 2, 3);
 		myRobot.setExpiration(0.1);
@@ -49,8 +58,18 @@ public class Robot extends IterativeRobot {
 		rightStick = new Joystick(1);
 		operatorStick = new Joystick(2);
 		pickup = new CANTalon(3);
+		
 		arm = new CANTalon(2);
-		//arm.setControlMode(CANTalon.TalonControlMode.Position.value);
+		arm.changeControlMode(TalonControlMode.Position);
+		arm.setFeedbackDevice(FeedbackDevice.AnalogPot);
+		arm.setForwardSoftLimit(1000);
+		arm.setReverseSoftLimit(20);
+		arm.enableForwardSoftLimit(true);
+		arm.enableReverseSoftLimit(true);
+		arm.configMaxOutputVoltage(8);
+		
+		ballSensor = new DigitalInput(0);
+		cam = new Camera();
     }
     
 	/**
@@ -81,6 +100,8 @@ public class Robot extends IterativeRobot {
     	//Put default auto code here
             break;
     	}
+
+    	periodic();
     }
 
     /**
@@ -97,15 +118,38 @@ public class Robot extends IterativeRobot {
     	} else {
         	pickup.set(0);
     	}
-    	
-    	arm.set(operatorStick.getY());
+
+		arm.setPID(SmartDashboard.getNumber("Arm P", 0), SmartDashboard.getNumber("Arm I", 0), SmartDashboard.getNumber("Arm D", 0));
+    	arm.set(SmartDashboard.getNumber("Arm Setpoint", 1000));
+
+    	periodic();
     }
     
     /**
      * This function is called periodically during test mode
      */
     public void testPeriodic() {
+    	periodic();
+    }
     
+    /**
+     * This function is called periodically during disabled mode
+     */
+    public void disabledPeriodic() {
+    	periodic();
+    }
+    
+    /**
+     * Generic periodic function called in all modes
+     */
+    private void periodic() {
+    	SmartDashboard.putNumber("Arm Position", arm.get());
+    	SmartDashboard.putNumber("Arm Setpoint Feedback", SmartDashboard.getNumber("Arm Setpoint", 1000));
+    	SmartDashboard.putBoolean("Ball Detected", ballSensor.get());
+    	SmartDashboard.putBoolean("Arm Forward Limit", arm.isFwdLimitSwitchClosed());
+    	SmartDashboard.putBoolean("Arm Reverse Limit", arm.isRevLimitSwitchClosed());
+    	SmartDashboard.putNumber("Pickup Current", pickup.getOutputCurrent());
+    	cam.periodic();
     }
 }
 // yellow right front
