@@ -5,6 +5,7 @@ import edu.wpi.first.wpilibj.CANTalon;
 import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
 import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.RobotDrive;
@@ -28,6 +29,8 @@ public class Robot extends IterativeRobot {
     final double shootSpeed = 1.0;
     String autoSelected;
     SendableChooser chooser;
+    Encoder leftEncoder;
+    Encoder rightEncoder;
     
     RobotDrive myRobot;  // class that handles basic drive operations
     Joystick leftStick;  // set to ID 1 in DriverStation
@@ -66,9 +69,12 @@ public class Robot extends IterativeRobot {
 		arm.setReverseSoftLimit(20);
 		arm.enableForwardSoftLimit(true);
 		arm.enableReverseSoftLimit(true);
-		arm.configMaxOutputVoltage(8);
 		
 		ballSensor = new DigitalInput(0);
+
+		leftEncoder = new Encoder(6, 7);
+		rightEncoder = new Encoder(9, 8);
+		
 		cam = new Camera();
     }
     
@@ -148,7 +154,10 @@ public class Robot extends IterativeRobot {
     	SmartDashboard.putBoolean("Ball Detected", ballSensor.get());
     	SmartDashboard.putBoolean("Arm Forward Limit", arm.isFwdLimitSwitchClosed());
     	SmartDashboard.putBoolean("Arm Reverse Limit", arm.isRevLimitSwitchClosed());
-    	SmartDashboard.putNumber("Pickup Current", pickup.getOutputCurrent());
+    	SmartDashboard.putNumber("Arm Current", arm.getOutputCurrent());
+    	SmartDashboard.putNumber("Arm Voltage", arm.getOutputVoltage());
+    	SmartDashboard.putNumber("Left Encoder", leftEncoder.get());
+    	SmartDashboard.putNumber("Right Encoder", rightEncoder.get());
     	cam.periodic();
     }
 }

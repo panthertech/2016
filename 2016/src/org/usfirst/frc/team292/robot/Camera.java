@@ -33,6 +33,7 @@ public class Camera {
 
     public void periodic() {
         NIVision.IMAQdxGrab(session, frame, 1);
+        NIVision.imaqFlip(frame, frame, NIVision.FlipAxis.CENTER_AXIS);
         CameraServer.getInstance().setImage(frame);
     }
 }
