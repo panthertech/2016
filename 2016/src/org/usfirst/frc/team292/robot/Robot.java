@@ -1,6 +1,7 @@
 
 package org.usfirst.frc.team292.robot;
 
+import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.CANTalon;
 import edu.wpi.first.wpilibj.CANTalon.FeedbackDevice;
 import edu.wpi.first.wpilibj.CANTalon.TalonControlMode;
@@ -23,14 +24,20 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 public class Robot extends IterativeRobot {
     final String defaultAuto = "Default";
     final String customAuto = "My Auto";
-    final double armUpPosition = 0;
-    final double armDownPosition = 1023;
+    final double armUpPosition = 300;
+    final double armBallPosition = 520;
+    final double armDownPosition = 590;
+    final double armP = 30.0;
+    final double armI = 0.002;
+    final double armD = 0.004;
+    final double liftArmP = 30.0;
+    final double liftArmI = 0.002;
+    final double liftArmD = 0.004;
+    final boolean manualArmControl = false;
     final double pickupSpeed = -0.40;
     final double shootSpeed = 1.0;
     String autoSelected;
     SendableChooser chooser;
-    Encoder leftEncoder;
-    Encoder rightEncoder;
     
     RobotDrive myRobot;  // class that handles basic drive operations
     Joystick leftStick;  // set to ID 1 in DriverStation
@@ -38,8 +45,13 @@ public class Robot extends IterativeRobot {
     Joystick operatorStick; //set to ID 3 in DriverStation
     CANTalon pickup;
 	CANTalon arm;
-	DigitalInput ballSensor;
+	CANTalon liftArm;
+	CANTalon winch;
+    Encoder leftEncoder;
+    Encoder rightEncoder;
+	AnalogInput ballSensor;
 	Camera cam;
+	Thread background;
 	
     /**
      * This function is run when the robot is first started up and should be
@@ -50,10 +62,6 @@ public class Robot extends IterativeRobot {
         chooser.addDefault("Default Auto", defaultAuto);
         chooser.addObject("My Auto", customAuto);
         SmartDashboard.putData("Auto choices", chooser);
-        SmartDashboard.putNumber("Arm Setpoint", 300);
-        SmartDashboard.putNumber("Arm P", 10);
-        SmartDashboard.putNumber("Arm I", .002);
-        SmartDashboard.putNumber("Arm D", .004);
 
 		myRobot = new RobotDrive(0, 1, 2, 3);
 		myRobot.setExpiration(0.1);
@@ -61,6 +69,7 @@ public class Robot extends IterativeRobot {
 		rightStick = new Joystick(1);
 		operatorStick = new Joystick(2);
 		pickup = new CANTalon(3);
+		winch = new CANTalon(6);
 		
 		arm = new CANTalon(2);
 		arm.changeControlMode(TalonControlMode.Position);
@@ -69,13 +78,26 @@ public class Robot extends IterativeRobot {
 		arm.setReverseSoftLimit(20);
 		arm.enableForwardSoftLimit(true);
 		arm.enableReverseSoftLimit(true);
+		arm.setPID(armP, armI, armD);
 		
-		ballSensor = new DigitalInput(0);
+		liftArm = new CANTalon(4);
+		liftArm.changeControlMode(TalonControlMode.Position);
+		liftArm.setFeedbackDevice(FeedbackDevice.AnalogPot);
+		liftArm.setPID(liftArmP, liftArmI, liftArmD);
+		SmartDashboard.putNumber("Lift Arm Setpoint", 500);
+		SmartDashboard.putNumber("Lift Arm P", liftArmP);
+		SmartDashboard.putNumber("Lift Arm I", liftArmI);
+		SmartDashboard.putNumber("Lift Arm D", liftArmD);
+		
+		ballSensor = new AnalogInput(0);
 
 		leftEncoder = new Encoder(6, 7);
 		rightEncoder = new Encoder(9, 8);
 		
 		cam = new Camera();
+		
+		background = new Thread(new Background());
+		background.start();
     }
     
 	/**
@@ -106,8 +128,6 @@ public class Robot extends IterativeRobot {
     	//Put default auto code here
             break;
     	}
-
-    	periodic();
     }
 
     /**
@@ -117,48 +137,69 @@ public class Robot extends IterativeRobot {
     	//pick up boulder
     	myRobot.tankDrive(-leftStick.getY(), -rightStick.getY());
     	
-    	if(operatorStick.getTrigger()) {
-        	pickup.set(shootSpeed);
-    	} else if (operatorStick.getRawButton(2)) {
+    	if(operatorStick.getRawButton(2)) {
         	pickup.set(pickupSpeed);
+    	} else if (operatorStick.getTrigger()) {
+        	pickup.set(shootSpeed);
     	} else {
         	pickup.set(0);
     	}
 
-		arm.setPID(SmartDashboard.getNumber("Arm P", 0), SmartDashboard.getNumber("Arm I", 0), SmartDashboard.getNumber("Arm D", 0));
-    	arm.set(SmartDashboard.getNumber("Arm Setpoint", 1000));
-
-    	periodic();
+		if(operatorStick.getRawButton(3)) {
+			arm.set(armUpPosition);
+			arm.clearIAccum();
+		}
+		if(operatorStick.getRawButton(4)) {
+			arm.set(armBallPosition);
+			arm.clearIAccum();
+		}
+		if(operatorStick.getRawButton(5)) {
+			arm.set(armDownPosition);
+			arm.clearIAccum();
+		}
+		
+		liftArm.setPID(SmartDashboard.getNumber("Lift Arm P"), SmartDashboard.getNumber("Lift Arm I"), SmartDashboard.getNumber("Lift Arm D"));
+		liftArm.set(SmartDashboard.getNumber("Lift Arm Setpoint"));
+		
+		winch.set(operatorStick.getY());
     }
     
     /**
      * This function is called periodically during test mode
      */
     public void testPeriodic() {
-    	periodic();
+    	
     }
     
     /**
      * This function is called periodically during disabled mode
      */
     public void disabledPeriodic() {
-    	periodic();
+    	
     }
     
-    /**
-     * Generic periodic function called in all modes
-     */
-    private void periodic() {
-    	SmartDashboard.putNumber("Arm Position", arm.get());
-    	SmartDashboard.putNumber("Arm Setpoint Feedback", SmartDashboard.getNumber("Arm Setpoint", 1000));
-    	SmartDashboard.putBoolean("Ball Detected", ballSensor.get());
-    	SmartDashboard.putBoolean("Arm Forward Limit", arm.isFwdLimitSwitchClosed());
-    	SmartDashboard.putBoolean("Arm Reverse Limit", arm.isRevLimitSwitchClosed());
-    	SmartDashboard.putNumber("Arm Current", arm.getOutputCurrent());
-    	SmartDashboard.putNumber("Arm Voltage", arm.getOutputVoltage());
-    	SmartDashboard.putNumber("Left Encoder", leftEncoder.get());
-    	SmartDashboard.putNumber("Right Encoder", rightEncoder.get());
-    	cam.periodic();
+    private class Background implements Runnable{
+		public void run() {
+			while(true) {
+		    	SmartDashboard.putNumber("Arm Position", arm.get());
+		    	if(ballSensor.getVoltage() < 0.5) {
+		    		SmartDashboard.putBoolean("Ball Detected", true);
+		    	} else {
+		    		SmartDashboard.putBoolean("Ball Detected", false);
+		    	}
+		    	SmartDashboard.putNumber("Arm Setpoint ", arm.getSetpoint());
+		    	SmartDashboard.putBoolean("Arm Forward Limit", arm.isFwdLimitSwitchClosed());
+		    	SmartDashboard.putBoolean("Arm Reverse Limit", arm.isRevLimitSwitchClosed());
+		    	SmartDashboard.putNumber("Arm Current", arm.getOutputCurrent());
+		    	SmartDashboard.putNumber("Arm Voltage", arm.getOutputVoltage());
+		    	SmartDashboard.putNumber("Left Encoder", leftEncoder.get());
+		    	SmartDashboard.putNumber("Right Encoder", rightEncoder.get());
+		    	SmartDashboard.putNumber("Lift Arm Position", liftArm.get());
+		    	SmartDashboard.putNumber("Lift Arm Current", liftArm.getOutputCurrent());
+		    	SmartDashboard.putNumber("Lift Arm Voltage", liftArm.getOutputVoltage());
+		    	cam.periodic();
+			}
+		}
     }
 }
 // yellow right front
