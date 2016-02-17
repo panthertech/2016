@@ -47,6 +47,7 @@ public class Robot extends IterativeRobot {
 	CANTalon arm;
 	CANTalon liftArm;
 	CANTalon winch;
+	CANTalon armExtender;
     Encoder leftEncoder;
     Encoder rightEncoder;
 	AnalogInput ballSensor;
@@ -70,6 +71,7 @@ public class Robot extends IterativeRobot {
 		operatorStick = new Joystick(2);
 		pickup = new CANTalon(3);
 		winch = new CANTalon(6);
+		armExtender = new CANTalon(5);
 		
 		arm = new CANTalon(2);
 		arm.changeControlMode(TalonControlMode.Position);
@@ -160,8 +162,18 @@ public class Robot extends IterativeRobot {
 		
 		liftArm.setPID(SmartDashboard.getNumber("Lift Arm P"), SmartDashboard.getNumber("Lift Arm I"), SmartDashboard.getNumber("Lift Arm D"));
 		liftArm.set(SmartDashboard.getNumber("Lift Arm Setpoint"));
-		
-		winch.set(operatorStick.getY());
+
+		if(operatorStick.getRawButton(7)) {
+			winch.set(operatorStick.getY());
+		} else {
+			winch.set(0);
+		}
+
+		if(operatorStick.getRawButton(11)) {
+			armExtender.set(operatorStick.getY());
+		} else {
+			armExtender.set(0);
+		}
     }
     
     /**
@@ -197,6 +209,7 @@ public class Robot extends IterativeRobot {
 		    	SmartDashboard.putNumber("Lift Arm Position", liftArm.get());
 		    	SmartDashboard.putNumber("Lift Arm Current", liftArm.getOutputCurrent());
 		    	SmartDashboard.putNumber("Lift Arm Voltage", liftArm.getOutputVoltage());
+		    	SmartDashboard.putNumber("Operator POV", operatorStick.getPOV());
 		    	cam.periodic();
 			}
 		}
