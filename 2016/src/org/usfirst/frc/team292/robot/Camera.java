@@ -1,39 +1,66 @@
 package org.usfirst.frc.team292.robot;
 
 import com.ni.vision.NIVision;
-import com.ni.vision.NIVision.DrawMode;
-import com.ni.vision.NIVision.Image;
-import com.ni.vision.NIVision.ShapeMode;
+import com.ni.vision.NIVision.*;
 
 import edu.wpi.first.wpilibj.CameraServer;
-import edu.wpi.first.wpilibj.SampleRobot;
-import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.vision.USBCamera;
 
-/**
- * This is a demo program showing the use of the NIVision class to do vision processing. 
- * The image is acquired from the USB Webcam, then a circle is overlayed on it. 
- * The NIVision class supplies dozens of methods for different types of processing. 
- * The resulting image can then be sent to the FRC PC Dashboard with setImage()
- */
-public class Camera {
-    int session;
-    Image frame;
-
-    public Camera() {
-
-        frame = NIVision.imaqCreateImage(NIVision.ImageType.IMAGE_RGB, 0);
-
-        // the camera name (ex "cam0") can be found through the roborio web interface
-        session = NIVision.IMAQdxOpenCamera("cam0",
-                NIVision.IMAQdxCameraControlMode.CameraControlModeController);
-        NIVision.IMAQdxConfigureGrab(session);
-
-        NIVision.IMAQdxStartAcquisition(session);
-    }
-
-    public void periodic() {
-        NIVision.IMAQdxGrab(session, frame, 1);
-        NIVision.imaqFlip(frame, frame, NIVision.FlipAxis.CENTER_AXIS);
-        CameraServer.getInstance().setImage(frame);
-    }
+public class Camera extends java.lang.Thread {
+    CameraServer server;
+    USBCamera frontCam, rearCam;
+    boolean frontCameraSelected = true;
+    boolean frontCameraStarted = false;
+    boolean rearCameraStarted = false;
+    
+	public Camera(String frontCameraName, String rearCameraName) {
+		server = CameraServer.getInstance();
+		server.setQuality(50);
+		
+		frontCam = new USBCamera(frontCameraName);
+		if(frontCameraName.equals(rearCameraName)) {
+			rearCam = frontCam;
+		} else {
+			rearCam = new USBCamera(rearCameraName);
+		}
+	}
+	
+ 	public void run() {
+ 	    Image image = NIVision.imaqCreateImage(ImageType.IMAGE_RGB, 0);
+		while(true)
+		{
+			if(frontCameraSelected) {
+				if(rearCameraStarted) {
+					rearCam.stopCapture();
+					rearCameraStarted = false;
+				}
+				if(!frontCameraStarted) {
+					frontCam.startCapture();
+					frontCameraStarted = true;
+				}
+				frontCam.getImage(image);
+				NIVision.imaqFlip(image, image, NIVision.FlipAxis.CENTER_AXIS);
+			} else {
+				if(frontCameraStarted) {
+					frontCam.stopCapture();
+					frontCameraStarted = false;
+				}
+				if(!rearCameraStarted) {
+					rearCam.startCapture();
+					rearCameraStarted = true;
+				}
+				rearCam.getImage(image);
+			}
+	        
+			server.setImage(image);
+		}
+	}
+ 	
+ 	public void viewFrontCamera() {
+ 		frontCameraSelected = true;
+ 	}
+ 	
+ 	public void viewRearCamera() {
+ 		frontCameraSelected = false;
+ 	}
 }
